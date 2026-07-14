@@ -1,20 +1,32 @@
-// Navbar.jsx — FINAL STABLE VERSION
+// Navbar.jsx — sticky navigation bar with auth-aware Teacher Login / Logout controls
 import React from "react";
-import { Link as RouterLink, useLocation } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom"; // useNavigate for post-logout redirect
 import {
   Box,
+  Button,
   Flex,
   HStack,
   Link,
   IconButton,
   Text,
   useColorMode,
-} from "@chakra-ui/react";
+} from "@chakra-ui/react"; // Button added for the Logout control
 import { MoonIcon, SunIcon } from "@chakra-ui/icons";
 
 export default function Navbar() {
   const { colorMode, toggleColorMode } = useColorMode();
-  const location = useLocation(); // ✅ Safe now (Router always exists)
+  const location = useLocation(); // Used to detect the active route for link highlighting
+  const navigate = useNavigate(); // Used to redirect to /teacher-login after logout
+
+  // Check whether a teacher JWT is stored — re-evaluated on every render so the Navbar
+  // reflects the correct state immediately after login or logout without a page refresh
+  const isLoggedIn = Boolean(localStorage.getItem('teacherToken'));
+
+  // Clear the stored token and redirect the user to the login page
+  const handleLogout = () => {
+    localStorage.removeItem('teacherToken'); // Remove the JWT from localStorage
+    navigate('/teacher-login');              // Send the user back to the login page
+  };
 
   const NavLink = ({ to, children }) => {
     const isActive = location.pathname === to;
@@ -60,9 +72,22 @@ export default function Navbar() {
       >
         <HStack spacing={4}>
           <Text fontWeight="bold">Student–Teacher Portal</Text>
-          <NavLink to="/">Home</NavLink>
-          <NavLink to="/student">Student</NavLink>
-          <NavLink to="/teacher">Teacher</NavLink>
+          <NavLink to="/">Home</NavLink>                   {/* Always visible — public page */}
+          <NavLink to="/student">Student</NavLink>         {/* Always visible — public page */}
+          <NavLink to="/teacher">Teacher</NavLink>         {/* Visible to all; ProtectedRoute handles access */}
+          {/* Show Teacher Login link when logged out; show Logout button when logged in */}
+          {!isLoggedIn ? (
+            <NavLink to="/teacher-login">Teacher Login</NavLink> // Link to login page when no token
+          ) : (
+            <Button                    // Logout button — only shown when a token exists
+              size="sm"
+              variant="outline"
+              colorScheme="red"
+              onClick={handleLogout}   // Clears token and redirects to /teacher-login
+            >
+              Logout
+            </Button>
+          )}
         </HStack>
         <IconButton
           aria-label="Toggle color mode"
