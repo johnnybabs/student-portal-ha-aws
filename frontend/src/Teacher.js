@@ -1,7 +1,8 @@
-// Teacher.js — Final fixed version (consistent with Student.js)
+// Teacher.js — Teacher CRUD page (protected — requires valid JWT from TeacherLogin)
 import React, { useState, useEffect } from 'react';
 import './Teacher.css';
 import { Helmet } from 'react-helmet-async';
+import { useNavigate } from 'react-router-dom'; // For redirecting to login when the token expires
 import {
   Box,
   Button,
@@ -28,14 +29,38 @@ function Teacher() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
+  const navigate = useNavigate(); // Used to redirect to /teacher-login when the JWT is expired or invalid
 
-  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; // Backend base URL baked in at CRA build time
+
+  // Build fetch options with the Authorization header for all authenticated requests
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',                              // Tell the backend we send JSON
+    Authorization: `Bearer ${localStorage.getItem('teacherToken')}`, // Attach the stored JWT
+  });
+
+  // If the backend signals the token is missing or expired, clear it and redirect to login
+  const handleAuthError = (status) => {
+    if (status === 401 || status === 403) {     // 401 = no/bad token, 403 = expired/invalid token
+      localStorage.removeItem('teacherToken'); // Clear the stale token from localStorage
+      navigate('/teacher-login');              // Send the user back to the login page
+    }
+  };
 
   const getData = () => {
     setLoading(true);
-    fetch(`${API_BASE_URL}/teacher`)
-      .then((res) => res.json())
+    fetch(`${API_BASE_URL}/teacher`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('teacherToken')}` }, // Attach JWT
+    })
       .then((res) => {
+        if (res.status === 401 || res.status === 403) { // Check for auth failure before parsing body
+          handleAuthError(res.status); // Clear token and redirect on auth failure
+          return null;                 // Stop the chain — do not attempt to parse the error body
+        }
+        return res.json(); // Parse JSON body only on a successful response
+      })
+      .then((res) => {
+        if (!res) return;               // Guard: skip state update if handleAuthError already ran
         console.log('Fetched teachers:', res);
         setData(res || []);
       })
@@ -54,28 +79,45 @@ function Teacher() {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default HTML form submission which would reload the page
     const requestOptions = {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(teacherData),
+      headers: authHeaders(), // Include both Content-Type and Authorization headers
+      body: JSON.stringify(teacherData), // Serialize the form state as the JSON request body
     };
     fetch(`${API_BASE_URL}/addteacher`, requestOptions)
-      .then((res) => res.json())
-      .then(() => {
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) { // Check for auth failure before parsing body
+          handleAuthError(res.status); // Clear token and redirect on auth failure
+          return null;                 // Stop the chain
+        }
+        return res.json(); // Parse JSON body only on a successful response
+      })
+      .then((data) => {
+        if (!data) return; // Guard: skip if handleAuthError already ran
         toast({ title: 'Teacher added', status: 'success' });
-        setTeacherData({ name: '', subject: '', class: '' });
-        getData();
+        setTeacherData({ name: '', subject: '', class: '' }); // Clear the form after successful add
+        getData(); // Refresh the table to show the newly added teacher
       })
       .catch(() => toast({ title: 'Error adding teacher', status: 'error' }));
   };
 
   const handleDelete = (id) => {
-    fetch(`${API_BASE_URL}/teacher/${id}`, { method: 'DELETE' })
-      .then((res) => res.json())
-      .then(() => {
+    fetch(`${API_BASE_URL}/teacher/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${localStorage.getItem('teacherToken')}` }, // Attach JWT
+    })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) { // Check for auth failure before parsing body
+          handleAuthError(res.status); // Clear token and redirect on auth failure
+          return null;                 // Stop the chain
+        }
+        return res.json(); // Parse JSON body only on a successful response
+      })
+      .then((data) => {
+        if (!data) return; // Guard: skip if handleAuthError already ran
         toast({ title: 'Deleted', status: 'info' });
-        getData();
+        getData(); // Refresh the table after successful deletion
       })
       .catch(() => toast({ title: 'Delete failed', status: 'error' }));
   };

@@ -1,0 +1,17 @@
+/* TeacherLogin.css — scoped styles for the TeacherLogin page */
+/* Layout uses Chakra UI; this file exists per the project convention of
+   one CSS file per page and provides a hook for future customisation. */
+
+/* Optional wrapper class available for background or layout overrides */
+.teacher-login-container {
+  display: flex;          /* Flexbox for alignment control */
+  justify-content: center; /* Centre the card horizontally */
+  align-items: flex-start; /* Align to the top of the viewport */
+  min-height: 80vh;        /* Occupy most of the viewport height */
+}
+
+/* Small notice text on the Register tab indicating admin-only use */
+.teacher-login-admin-notice {
+  font-size: 0.85rem; /* Slightly smaller than body text to de-emphasise */
+  color: #dd6b20;     /* Matches Chakra UI orange.600 for visual consistency */
+}
